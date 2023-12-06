@@ -8,9 +8,9 @@ import os
 
 
 class catBoost:
-    def __init__(self, file_path):
+    def __init__(self, filePath):
         self.model = None
-        self.data = pd.read_csv(file_path)
+        self.data = pd.read_csv(filePath)
         self.features = self.data.drop("Class/ASD", axis=1)
         self.target = self.data["Class/ASD"]
         self.target = self.target.replace({'YES': 1, 'NO': 0, '?': 'Others', 'others': 'Others'})
@@ -58,10 +58,11 @@ class catBoost:
 csvFiles = []
 for filename in os.listdir("datasets"):
     if filename.endswith(('csvAdam.csv', 'train.csv', 'autism_screening.csv')):  # Add more extensions if needed
-        filePath = os.path.join("datasets", filename)
-        csvFiles.append(filePath)
+        path = os.path.join("datasets", filename)
+        csvFiles.append(path)
 
 for file in csvFiles:
+    print(f"Dataset file: {file}")
     testing = catBoost(file)
     testing.createModel("catBoost")
     testing.train()
