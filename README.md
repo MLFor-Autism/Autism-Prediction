@@ -8,7 +8,7 @@ This project focuses on predicting autism based on screening data. The dataset u
 - [Autism Screening Dataset]('https://www.kaggle.com/datasets/faizunnabi/autism-screening')
 
 ### Autism Screening on Adults
-=- [Additional Dataset]('https://www.kaggle.com/datasets/andrewmvd/autism-screening-on-adults')
+- [Autism Screening Dataset]('https://www.kaggle.com/datasets/andrewmvd/autism-screening-on-adults')
 
 ### Preprocessed Autism Screening on Adults
-- [Another Dataset]('https://www.kaggle.com/datasets/joseguzman/autism-preprocess')
+- [Autism Screening Dataset]('https://www.kaggle.com/datasets/joseguzman/autism-preprocess')
