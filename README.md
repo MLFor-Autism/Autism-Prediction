@@ -1,6 +1,6 @@
 # Autism Prediction
 
-This project focuses on predicting autism based on screening data. The dataset used in this project includes information related to autism screening.
+This project focuses on predicting autism based on screening data. The datasets used in this project includes information related to autism screening.
 
 ## Datasets
 
