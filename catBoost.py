@@ -33,7 +33,7 @@ class catBoost:
         cm = confusion_matrix(self.yTest, self.predict())
         report = classification_report(self.yTest, self.predict())
 
-        print(f"Confusion Matrix: {cm}")
+        print(f"Confusion Matrix: \n{cm}")
         print(f"Classification Report: \n{report}")
         print(f"Accuracy: {accuracy}")
         print(f"Precision: {precision}")
