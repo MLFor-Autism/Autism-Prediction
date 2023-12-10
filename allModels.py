@@ -20,11 +20,11 @@ class ML:
     def __init__(self, filePath):
         self.model = None
         self.data = pd.read_csv(filePath)
-        if not filePath.endswith('train.csv'):
+        if not filePath.endswith('Generic_ASD.csv'):
             self.preprocess()
             self.balance()
-        self.features = self.data.drop("Class/ASD", axis=1)
-        self.target = self.data["Class/ASD"]
+        self.features = self.data.drop("ASD", axis=1)
+        self.target = self.data["ASD"]
         self.target = self.target.replace({'YES': 1, 'NO': 0})
         self.features = self.features.replace({True: 1, False: 0})
         self.xTrain = self.xTest = self.yTrain = self.yTest = None
@@ -77,18 +77,19 @@ class ML:
         return x
 
     def preprocess(self):
-        categorical_columns = ['ethnicity', 'jaundice', 'autism','age_desc', 'relation']
-        self.data['Class/ASD'] = self.data['Class/ASD'].replace({"YES": 1, "NO": 0})
-        for column in ['ethnicity', 'country_of_res','age_desc', 'relation']:
-            success_rates = self.data.groupby(column)['Class/ASD'].mean()
+        categorical_columns = ['Ethnicity', 'Jaundice','testTaker','ASDInFamily']
+        self.data['ASD'] = self.data['ASD'].replace({"YES": 1, "NO": 0})
+        for column in ['Ethnicity', 'testTaker']:
+            success_rates = self.data.groupby(column)['ASD'].mean()
             weights = 1 / success_rates.replace(0, np.inf)
             weights.replace(np.inf, 1e10, inplace=True)
             self.data[column + '_weight'] = self.data[column].map(weights)
         self.data = pd.get_dummies(self.data, columns=categorical_columns, prefix=categorical_columns)
-        self.data['age'] = (self.data['age'] - min(self.data['age'])) / (max(self.data['age']) - min(self.data['age']))
-        self.data['result'] = (self.data['result'] - min(self.data['result'])) / (
-                max(self.data['result']) - min(self.data['result']))
-        self.data = self.data.drop(['jaundice_no',"gender",'autism_no','used_app_before','country_of_res',], axis=1)
+        self.data['Age'] = (self.data['Age'] - min(self.data['Age'])) / (max(self.data['Age']) - min(self.data['Age']))
+        if 'result' in self.data:
+            self.data['result'] = (self.data['result'] - min(self.data['result'])) / (
+                    max(self.data['result']) - min(self.data['result']))
+        self.data = self.data.drop(['Jaundice_No',"Gender",'ASDInFamily_No'], axis=1)
 
     def createModel(self, model):
         if model == "catBoost":
@@ -111,19 +112,19 @@ class ML:
         return self.model
 
     def plotTarget(self):
-        sns.countplot(x='Class/ASD', data=self.data)
+        sns.countplot(x='ASD', data=self.data)
         plt.show()
 
     def balance(self):
-        majority = self.data[self.data['Class/ASD'] == 0]
-        minority = self.data[self.data['Class/ASD'] == 1]
-        majorityDownsampled = resample(majority, replace=False, n_samples=len(minority), random_state=42)
+        majority = self.data[self.data['ASD'] == 0]
+        minority = self.data[self.data['ASD'] == 1]
+        majorityDownsampled = resample(majority, replace=True, n_samples=len(minority), random_state=42)
         self.data = pd.concat([majorityDownsampled, minority])
 
 
 models = ["catBoost", "Logistic Regression", "RandomForest", "SVC", "Decision Tree", "KNN", "Naive Bayes"]
 csvFiles = [os.path.join("datasets", filename) for filename in os.listdir("datasets")
-            if filename.endswith(( 'train.csv', 'autism_screening.csv'))]
+            if filename.endswith(( '.csv' ))]
 
 results = {}
 for file in csvFiles:
