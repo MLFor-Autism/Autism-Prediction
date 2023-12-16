@@ -12,7 +12,7 @@ from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report, \
     confusion_matrix, make_scorer, roc_auc_score
-from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold
+from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold, cross_val_predict
 from sklearn.utils import resample
 
 
@@ -33,23 +33,29 @@ class ML:
         self.xTrain = self.xTest = self.yTrain = self.yTest = None
 
     def trainWithSplitting(self):
+        print('\nTrain-Test Spliting')
         self.xTrain, self.xTest, self.yTrain, self.yTest = train_test_split(self.features, self.target, test_size=0.3,
                                                                             random_state=42)
         self.xTrain = self.normalize(self.xTrain)
         self.model.fit(self.xTrain, self.yTrain)
 
     def crossValidation(self):
-        scoring_metrics = {
-            'accuracy': 'accuracy',
-            'precision': make_scorer(precision_score),
-            'recall': make_scorer(recall_score),
-            'f1': make_scorer(f1_score)
-        }
+        print("\nCross Validation")
         cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-        for metric_name, scoring_metric in scoring_metrics.items():
-            scores = cross_val_score(self.model, self.normalize(self.features), self.normalize(self.target), cv=cv,
-                                     scoring=scoring_metric)
-            print(f"Cross-validated {metric_name}: {scores.mean():.2f} (+/- {scores.std() * 2:.2f})")
+        prediction = cross_val_predict(self.model, self.normalize(self.features), self.normalize(self.target), cv=cv)
+        report = classification_report( self.normalize(self.target),prediction, output_dict=True)
+        cm = confusion_matrix(self.normalize(self.target), prediction)
+        print(f'Confusion Matrix: \n{cm}')
+        print(f"Classification Report: \n{classification_report( self.normalize(self.target),prediction)}")
+        precision = report['weighted avg']['precision']
+        recall = report['weighted avg']['recall']
+        f1 = report['weighted avg']['f1-score']
+        accuracy = report['accuracy']
+        print(f"Accuracy: {accuracy}")
+        print(f"Precision: {precision}")
+        print(f"Recall: {recall}")
+        print(f"F1-score: {f1}")
+
 
     def predict(self):
         self.xTest = self.normalize(self.xTest)
@@ -102,7 +108,7 @@ class ML:
 
     def createModel(self, model):
         if model == "catBoost":
-            self.model = CatBoostClassifier(iterations=500, depth=10, learning_rate=0.05, loss_function='Logloss')
+            self.model = CatBoostClassifier(iterations=500, verbose=False, depth=10, learning_rate=0.05, loss_function='Logloss')
         elif model == "Logistic Regression":
             self.model = LogisticRegression(random_state=42, solver='liblinear', max_iter=1500)
         elif model == "RandomForest":
@@ -177,6 +183,7 @@ for file in csvFiles:
         testing.createModel(model)
         testing.trainWithSplitting()
         metrics = testing.showMetrics()
+        testing.crossValidation()
         datasetResults[model] = metrics
         testing.plotTree()
     print(testing.xTest.info())
