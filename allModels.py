@@ -9,7 +9,7 @@ from sklearn.naive_bayes import GaussianNB
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report, \
     confusion_matrix, make_scorer, roc_auc_score
 from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold
@@ -18,11 +18,14 @@ from sklearn.utils import resample
 
 class ML:
     def __init__(self, filePath):
+        self.datasetName = filePath[9:-8]
         self.model = None
         self.data = pd.read_csv(filePath)
-        if not filePath.endswith('Generic_ASD.csv'):
+        if filePath.endswith('Generic_ASD.csv'):
+            self.data['ASD'] = self.data['ASD'].replace({"YES": 1, "NO": 0})
+        else:
             self.preprocess()
-            self.balance()
+        self.balance()
         self.features = self.data.drop("ASD", axis=1)
         self.target = self.data["ASD"]
         self.target = self.target.replace({'YES': 1, 'NO': 0})
@@ -59,7 +62,7 @@ class ML:
         f1 = f1_score(self.yTest, self.predict())
         cm = confusion_matrix(self.yTest, self.predict())
         report = classification_report(self.yTest, self.predict(), zero_division=1)
-
+        self.plotConfusionMatrix(cm)
         print(f"Confusion Matrix: \n{cm}")
         print(f"Classification Report: \n{report}")
         print(f"Accuracy: {accuracy}")
@@ -77,7 +80,7 @@ class ML:
         return x
 
     def preprocess(self):
-        categorical_columns = ['Ethnicity', 'Jaundice','testTaker','ASDInFamily']
+        categorical_columns = ['Ethnicity', 'Jaundice', 'testTaker', 'ASDInFamily']
         self.data['ASD'] = self.data['ASD'].replace({"YES": 1, "NO": 0})
         for column in ['Ethnicity', 'testTaker']:
             success_rates = self.data.groupby(column)['ASD'].mean()
@@ -89,7 +92,13 @@ class ML:
         if 'result' in self.data:
             self.data['result'] = (self.data['result'] - min(self.data['result'])) / (
                     max(self.data['result']) - min(self.data['result']))
-        self.data = self.data.drop(['Jaundice_No',"Gender",'ASDInFamily_No'], axis=1)
+        self.data = self.data.drop(['Jaundice_No', "Gender", 'ASDInFamily_No'], axis=1)
+
+    def balance(self):
+        majority = self.data[self.data['ASD'] == 0]
+        minority = self.data[self.data['ASD'] == 1]
+        majorityDownsampled = resample(majority, replace=True, n_samples=len(minority), random_state=42)
+        self.data = pd.concat([majorityDownsampled, minority])
 
     def createModel(self, model):
         if model == "catBoost":
@@ -112,35 +121,67 @@ class ML:
         return self.model
 
     def plotTarget(self):
-        sns.countplot(x='ASD', data=self.data)
+        asd = self.data.copy()
+        asd['ASD'] = asd['ASD'].replace({0: "Isn't afflicted with ASD", 1: "Is afflicted with ASD"})
+        sns.countplot(x='ASD', data=asd, hue='ASD', palette={"Isn't afflicted with ASD": "indianred",
+                                                             "Is afflicted with ASD": "lightseagreen"}).set_facecolor(
+            "floralwhite")
+        plt.xlabel('Autsim Spectrum Disorder Classification')
+        plt.ylabel('Questionaire Subjects')
+        plt.title(self.datasetName + " Data")
+        plt.gcf().set_facecolor("oldlace")
         plt.show()
 
-    def balance(self):
-        majority = self.data[self.data['ASD'] == 0]
-        minority = self.data[self.data['ASD'] == 1]
-        majorityDownsampled = resample(majority, replace=True, n_samples=len(minority), random_state=42)
-        self.data = pd.concat([majorityDownsampled, minority])
+    def plotTree(self):
+        if isinstance(self.model, DecisionTreeClassifier):
+            plt.figure(figsize=(12, 8))
+            plot_tree(self.model, filled=True, feature_names=self.features.columns)
+            plt.title(f'Decision Tree for the {self.datasetName} subjects')
+            plt.gcf().set_facecolor("oldlace")
+            plt.show()
+
+    def plotCorrelations(self):
+        plt.figure(figsize=(10, 8))
+        correlation_matrix = self.data[
+            ['ASD'] + ['A1'] + ['A2'] + ['A3'] + ['A4'] + ['A5'] + ['A6'] + ['A7'] + ['A8'] + ['A9'] + ['A10']].corr()
+        sns.heatmap(correlation_matrix, annot=True, cmap='twilight', fmt=".2f")
+        plt.title(self.datasetName + " Feature Correlation Matrix")
+        plt.gcf().set_facecolor("oldlace")
+        plt.show()
+
+    def plotConfusionMatrix(self, cm):
+        plt.figure(figsize=(6, 6))
+        sns.heatmap(cm, annot=True, cmap=["cadetblue", "brown"], cbar=False, fmt='g',
+                    xticklabels=["Predicted to not have ASD", "Predicted to have ASD"],
+                    yticklabels=["Doesn't actually have ASD", "Actually has ASD"])
+        plt.title("Confusion Matrix for " + self.datasetName + " Subjects using " + self.model.__class__.__name__)
+        plt.xlabel("Predicted")
+        plt.ylabel("Actual")
+        plt.gcf().set_facecolor("oldlace")
+        plt.show()
 
 
 models = ["catBoost", "Logistic Regression", "RandomForest", "SVC", "Decision Tree", "KNN", "Naive Bayes"]
 csvFiles = [os.path.join("datasets", filename) for filename in os.listdir("datasets")
-            if filename.endswith(( '.csv' ))]
+            if filename.endswith(('.csv'))]
 
 results = {}
 for file in csvFiles:
     print(f"\nDataset file: {file}")
     testing = ML(file)
     datasetResults = {}
-
+    testing.plotTarget()
+    testing.plotCorrelations()
     for model in models:
         print(f"\nModel: {model}")
         testing.createModel(model)
         testing.trainWithSplitting()
         metrics = testing.showMetrics()
         datasetResults[model] = metrics
-    print(testing.xTrain.info())
+        testing.plotTree()
     print(testing.xTest.info())
     results[file] = datasetResults
+    input("Press Enter to continue...")
 print("\nSummary of Results:")
 for dataset, metricsDict in results.items():
     print(f"\nDataset: {dataset}")
