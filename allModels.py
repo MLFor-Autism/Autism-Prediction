@@ -43,10 +43,10 @@ class ML:
         print("\nCross Validation")
         cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
         prediction = cross_val_predict(self.model, self.normalize(self.features), self.normalize(self.target), cv=cv)
-        report = classification_report( self.normalize(self.target),prediction, output_dict=True)
+        report = classification_report(self.normalize(self.target), prediction, output_dict=True)
         cm = confusion_matrix(self.normalize(self.target), prediction)
         print(f'Confusion Matrix: \n{cm}')
-        print(f"Classification Report: \n{classification_report( self.normalize(self.target),prediction)}")
+        print(f"Classification Report: \n{classification_report(self.normalize(self.target), prediction)}")
         precision = report['weighted avg']['precision']
         recall = report['weighted avg']['recall']
         f1 = report['weighted avg']['f1-score']
@@ -55,7 +55,9 @@ class ML:
         print(f"Precision: {precision}")
         print(f"Recall: {recall}")
         print(f"F1-score: {f1}")
-
+        return {
+            "accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1
+        }
 
     def predict(self):
         self.xTest = self.normalize(self.xTest)
@@ -108,7 +110,8 @@ class ML:
 
     def createModel(self, model):
         if model == "catBoost":
-            self.model = CatBoostClassifier(iterations=500, verbose=False, depth=10, learning_rate=0.05, loss_function='Logloss')
+            self.model = CatBoostClassifier(iterations=500, verbose=False, depth=10, learning_rate=0.05,
+                                            loss_function='Logloss')
         elif model == "Logistic Regression":
             self.model = LogisticRegression(random_state=42, solver='liblinear', max_iter=1500)
         elif model == "RandomForest":
@@ -171,11 +174,13 @@ models = ["catBoost", "Logistic Regression", "RandomForest", "SVC", "Decision Tr
 csvFiles = [os.path.join("datasets", filename) for filename in os.listdir("datasets")
             if filename.endswith(('.csv'))]
 
-results = {}
+trainTestSplittingResults = {}
+crossValidationResults = {}
 for file in csvFiles:
     print(f"\nDataset file: {file}")
     testing = ML(file)
-    datasetResults = {}
+    datasetTestResults = {}
+    datasetValidationResults = {}
     testing.plotTarget()
     testing.plotCorrelations()
     for model in models:
@@ -183,17 +188,26 @@ for file in csvFiles:
         testing.createModel(model)
         testing.trainWithSplitting()
         metrics = testing.showMetrics()
-        testing.crossValidation()
-        datasetResults[model] = metrics
+        datasetValidationResults[model] = testing.crossValidation()
+        datasetTestResults[model] = metrics
         testing.plotTree()
     print(testing.xTest.info())
-    results[file] = datasetResults
+    trainTestSplittingResults[file] = datasetTestResults
+    crossValidationResults[file] = datasetValidationResults
     input("Press Enter to continue...")
+
+
+def print_results(results, result_type):
+    for dataset, metricsDict in results.items():
+        print(f"\nDataset: {dataset}")
+        for model, metrics in metricsDict.items():
+            print(f"\nModel: {model}")
+            print(metrics)
+        bestModel = max(metricsDict, key=lambda k: metricsDict[k]["accuracy"])
+        print(
+            f"\nMost accurate algorithm for {dataset} using {result_type} is {bestModel} with accuracy {metricsDict[bestModel]['accuracy']}")
+
+
 print("\nSummary of Results:")
-for dataset, metricsDict in results.items():
-    print(f"\nDataset: {dataset}")
-    for model, metrics in metricsDict.items():
-        print(f"\nModel: {model}")
-        print(metrics)
-    bestModel = max(metricsDict, key=lambda k: metricsDict[k]["accuracy"])
-    print(f"\nMost accurate algorithm for {dataset} is {bestModel} with accuracy {metricsDict[bestModel]['accuracy']}")
+print_results(trainTestSplittingResults, "train-test splitting")
+print_results(crossValidationResults, "k-folds cross validation")
